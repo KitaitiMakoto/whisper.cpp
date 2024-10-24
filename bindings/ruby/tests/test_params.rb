@@ -110,4 +110,10 @@ class TestParams < Test::Unit::TestCase
     @params.split_on_word = false
     assert !@params.split_on_word
   end
+
+  def test_initial_prompt
+    assert_nil @params.initial_prompt
+    @params.initial_prompt = "You are a polite person."
+    assert_equal "You are a polite person.", @params.initial_prompt
+  end
 end
