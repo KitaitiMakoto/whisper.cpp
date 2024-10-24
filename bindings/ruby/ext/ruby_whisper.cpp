@@ -916,6 +916,24 @@ static VALUE ruby_whisper_params_on_new_segment(VALUE self) {
 }
 
 /*
+ * Hook called on progress update.
+ *
+ *   whisper.on_progress do |progress|
+ *     # ...
+ *   end
+ *
+ * call-seq:
+ *   on_progress {|progress| ... }
+ */
+static VALUE ruby_whisper_params_on_progress(VALUE self) {
+  ruby_whisper_params *rws;
+  Data_Get_Struct(self, ruby_whisper_params, rws);
+  const VALUE blk = rb_block_proc();
+  rb_ary_push(rws->progress_callback_container->callbacks, blk);
+  return Qnil;
+}
+
+/*
  * Start time in milliseconds.
  *
  * call-seq:
@@ -1050,6 +1068,7 @@ void Init_whisper() {
   rb_define_alloc_func(cSegment, ruby_whisper_segment_allocate);
   rb_define_method(cContext, "each_segment", ruby_whisper_each_segment, 0);
   rb_define_method(cParams, "on_new_segment", ruby_whisper_params_on_new_segment, 0);
+  rb_define_method(cParams, "on_progress", ruby_whisper_params_on_progress, 0);
   rb_define_method(cSegment, "start_time", ruby_whisper_segment_get_start_time, 0);
   rb_define_method(cSegment, "end_time", ruby_whisper_segment_get_end_time, 0);
   rb_define_method(cSegment, "speaker_next_turn?", ruby_whisper_segment_get_speaker_turn_next, 0);
