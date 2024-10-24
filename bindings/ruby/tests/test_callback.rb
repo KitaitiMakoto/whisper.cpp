@@ -98,4 +98,18 @@ class TestCallback < Test::Unit::TestCase
 
     @whisper.transcribe(@audio, @params)
   end
+
+  def test_on_progress
+    first = nil
+    last = nil
+    @params.on_progress do |progress|
+      assert_kind_of Integer, progress
+      assert 0 <= progress && progress <= 100
+      first = progress if first.nil?
+      last = progress
+    end
+    @whisper.transcribe(@audio, @params)
+    assert_equal 0, first
+    assert_equal 100, last
+  end
 end
