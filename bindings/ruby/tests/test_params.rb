@@ -1,3 +1,4 @@
+require 'test/unit'
 require 'whisper'
 
 class TestParams < Test::Unit::TestCase
