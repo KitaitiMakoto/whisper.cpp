@@ -73,4 +73,29 @@ class TestCallback < Test::Unit::TestCase
 
     assert_same @whisper, @whisper.transcribe(@audio, @params)
   end
+
+  def test_progress_callback
+    first = nil
+    last = nil
+    @params.progress_callback = ->(context, state, progress, user_data) {
+      assert_kind_of Integer, progress
+      assert 0 <= progress && progress <= 100
+      assert_same @whisper, context
+      first = progress if first.nil?
+      last = progress
+    }
+    @whisper.transcribe(@audio, @params)
+    assert_equal 0, first
+    assert_equal 100, last
+  end
+
+  def test_progress_callback_user_data
+    udata = Object.new
+    @params.progress_callback_user_data = udata
+    @params.progress_callback = ->(context, state, n_new, user_data) {
+      assert_same udata, user_data
+    }
+
+    @whisper.transcribe(@audio, @params)
+  end
 end
