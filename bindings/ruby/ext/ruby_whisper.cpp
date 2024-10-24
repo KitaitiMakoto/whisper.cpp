@@ -632,6 +632,30 @@ static VALUE ruby_whisper_params_set_split_on_word(VALUE self, VALUE value) {
   BOOL_PARAMS_SETTER(self, split_on_word, value)
 }
 /*
+ * Tokens to provide to the whisper decoder as initial prompt
+ * these are prepended to any existing text context from a previous call
+ * use whisper_tokenize() to convert text to tokens.
+ * Maximum of whisper_n_text_ctx()/2 tokens are used (typically 224).
+ *
+ * call-seq:
+ *   initial_prompt -> String
+ */
+static VALUE ruby_whisper_params_get_initial_prompt(VALUE self) {
+  ruby_whisper_params *rwp;
+  Data_Get_Struct(self, ruby_whisper_params, rwp);
+  return rwp->params.initial_prompt == nullptr ? Qnil : rb_str_new2(rwp->params.initial_prompt);
+}
+/*
+ * call-seq:
+ *   initial_prompt = prompt -> prompt
+ */
+static VALUE ruby_whisper_params_set_initial_prompt(VALUE self, VALUE value) {
+  ruby_whisper_params *rwp;
+  Data_Get_Struct(self, ruby_whisper_params, rwp);
+  rwp->params.initial_prompt = StringValueCStr(value);
+  return value;
+}
+/*
  * If true, enables diarization.
  *
  * call-seq:
@@ -946,6 +970,8 @@ void Init_whisper() {
   rb_define_method(cParams, "token_timestamps=", ruby_whisper_params_set_token_timestamps, 1);
   rb_define_method(cParams, "split_on_word", ruby_whisper_params_get_split_on_word, 0);
   rb_define_method(cParams, "split_on_word=", ruby_whisper_params_set_split_on_word, 1);
+  rb_define_method(cParams, "initial_prompt", ruby_whisper_params_get_initial_prompt, 0);
+  rb_define_method(cParams, "initial_prompt=", ruby_whisper_params_set_initial_prompt, 1);
   rb_define_method(cParams, "diarize", ruby_whisper_params_get_diarize, 0);
   rb_define_method(cParams, "diarize=", ruby_whisper_params_set_diarize, 1);
 
