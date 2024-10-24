@@ -107,10 +107,15 @@ void rb_whisper_free(ruby_whisper *rw) {
   free(rw);
 }
 
+void rb_whisper_callbcack_container_mark(ruby_whisper_callback_container *rwc) {
+  rb_gc_mark(rwc->user_data);
+  rb_gc_mark(rwc->callback);
+  rb_gc_mark(rwc->callbacks);
+}
+
 void rb_whisper_params_mark(ruby_whisper_params *rwp) {
-  rb_gc_mark(rwp->new_segment_callback_container->user_data);
-  rb_gc_mark(rwp->new_segment_callback_container->callback);
-  rb_gc_mark(rwp->new_segment_callback_container->callbacks);
+  rb_whisper_callbcack_container_mark(rwp->new_segment_callback_container);
+  rb_whisper_callbcack_container_mark(rwp->progress_callback_container);
 }
 
 void rb_whisper_params_free(ruby_whisper_params *rwp) {
@@ -141,6 +146,7 @@ static VALUE ruby_whisper_params_allocate(VALUE klass) {
   rwp = ALLOC(ruby_whisper_params);
   rwp->params = whisper_full_default_params(WHISPER_SAMPLING_GREEDY);
   rwp->new_segment_callback_container = rb_whisper_callback_container_allocate();
+  rwp->progress_callback_container = rb_whisper_callback_container_allocate();
   return Data_Wrap_Struct(klass, rb_whisper_params_mark, rb_whisper_params_free, rwp);
 }
 
@@ -314,6 +320,28 @@ static VALUE ruby_whisper_transcribe(int argc, VALUE *argv, VALUE self) {
     };
     rwp->new_segment_callback_container->context = &self;
     rwp->params.new_segment_callback_user_data = rwp->new_segment_callback_container;
+  }
+
+  if (!NIL_P(rwp->progress_callback_container->callback) || 0 != RARRAY_LEN(rwp->progress_callback_container->callbacks)) {
+    rwp->params.progress_callback = [](struct whisper_context *ctx, struct whisper_state * /*state*/, int progress_cur, void *user_data) {
+      const ruby_whisper_callback_container *container = (ruby_whisper_callback_container *)user_data;
+      const VALUE progress = INT2NUM(progress_cur);
+      // Currently, doesn't support state because
+      // those require to resolve GC-related problems.
+      if (!NIL_P(container->callback)) {
+        rb_funcall(container->callback, id_call, 4, *container->context, Qnil, progress, container->user_data);
+      }
+      const long callbacks_len = RARRAY_LEN(container->callbacks);
+      if (0 == callbacks_len) {
+        return;
+      }
+      for (int j = 0; j < callbacks_len; j++) {
+        VALUE cb = rb_ary_entry(container->callbacks, j);
+        rb_funcall(cb, id_call, 1, progress);
+      }
+    };
+    rwp->progress_callback_container->context = &self;
+    rwp->params.progress_callback_user_data = rwp->progress_callback_container;
   }
 
   if (whisper_full_parallel(rw->context, rwp->params, pcmf32.data(), pcmf32.size(), 1) != 0) {
@@ -777,6 +805,34 @@ static VALUE ruby_whisper_params_set_new_segment_callback_user_data(VALUE self, 
   rwp->new_segment_callback_container->user_data = value;
   return value;
 }
+/*
+ * Sets progress callback, called on each progress update.
+ *
+ *   params.new_segment_callback = ->(context, _, n_new, user_data) {
+ *     # ...
+ *   }
+ *
+ * call-seq:
+ *   progress_callback = callback -> callback
+ */
+static VALUE ruby_whisper_params_set_progress_callback(VALUE self, VALUE value) {
+  ruby_whisper_params *rwp;
+  Data_Get_Struct(self, ruby_whisper_params, rwp);
+  rwp->progress_callback_container->callback = value;
+  return value;
+}
+/*
+ * Sets user data passed to the last argument of progress callback.
+ *
+ * call-seq:
+ *   progress_callback_user_data = user_data -> use_data
+ */
+static VALUE ruby_whisper_params_set_progress_callback_user_data(VALUE self, VALUE value) {
+  ruby_whisper_params *rwp;
+  Data_Get_Struct(self, ruby_whisper_params, rwp);
+  rwp->progress_callback_container->user_data = value;
+  return value;
+}
 
 // High level API
 
@@ -985,6 +1041,8 @@ void Init_whisper() {
 
   rb_define_method(cParams, "new_segment_callback=", ruby_whisper_params_set_new_segment_callback, 1);
   rb_define_method(cParams, "new_segment_callback_user_data=", ruby_whisper_params_set_new_segment_callback_user_data, 1);
+  rb_define_method(cParams, "progress_callback=", ruby_whisper_params_set_progress_callback, 1);
+  rb_define_method(cParams, "progress_callback_user_data=", ruby_whisper_params_set_progress_callback_user_data, 1);
 
   // High leve
   cSegment  = rb_define_class_under(mWhisper, "Segment", rb_cObject);
