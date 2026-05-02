@@ -1,0 +1,85 @@
+name: Windows Bindings Tests (Ruby)
+
+on:
+  push:
+    branches:
+      - ruby-dev-tmp
+  pull_request:
+    types: [opened, synchronize, reopened]
+
+jobs:
+  windows:
+    runs-on: windows-latest
+    defaults:
+      run:
+        working-directory: bindings/ruby
+    steps:
+      - uses: ruby/setup-ruby@v1
+        with:
+          ruby-version: '3.2'
+      - uses: actions/checkout@v6
+      - name: Inspect Windows toolchain
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = "Continue"
+
+          Write-Host "##[group]Ruby and MSYS2 environment"
+          ruby -v
+          if (Get-Command ridk -ErrorAction SilentlyContinue) {
+            ridk version
+          }
+          "MSYSTEM=$env:MSYSTEM"
+          "MINGW_PREFIX=$env:MINGW_PREFIX"
+          "MAKE=$env:MAKE"
+          "CC=$env:CC"
+          "CXX=$env:CXX"
+          "CMAKE_GENERATOR=$env:CMAKE_GENERATOR"
+          "CMAKE_GENERATOR_PLATFORM=$env:CMAKE_GENERATOR_PLATFORM"
+          "CMAKE_GENERATOR_TOOLSET=$env:CMAKE_GENERATOR_TOOLSET"
+          Write-Host "##[endgroup]"
+
+          Write-Host "##[group]PATH entries"
+          $env:PATH -split ';' | ForEach-Object -Begin {$i = 0} -Process {
+            "{0:D2}: {1}" -f $i, $_
+            $i++
+          }
+          Write-Host "##[endgroup]"
+
+          Write-Host "##[group]Command resolution"
+          $commands = @(
+            "ruby", "rake", "cmake", "make", "mingw32-make", "ninja",
+            "gcc", "g++", "clang", "clang++", "cl", "link", "mt",
+            "sh", "bash", "git"
+          )
+
+          foreach ($cmd in $commands) {
+            Write-Host "--- $cmd"
+            Get-Command $cmd -All -ErrorAction SilentlyContinue | Format-List `
+              Name, CommandType, Source, Version, Path
+            where.exe $cmd 2>$null
+          }
+          Write-Host "##[endgroup]"
+
+          Write-Host "##[group]Tool versions"
+          $versionCommands = @(
+            @("cmake", "--version"),
+            @("make", "--version"),
+            @("mingw32-make", "--version"),
+            @("ninja", "--version"),
+            @("gcc", "--version"),
+            @("clang", "--version"),
+            @("git", "--version")
+          )
+
+          foreach ($versionCommand in $versionCommands) {
+            $exe = $versionCommand[0]
+            if (Get-Command $exe -ErrorAction SilentlyContinue) {
+              Write-Host "--- $($versionCommand -join ' ')"
+              & $versionCommand[0] $versionCommand[1]
+            }
+          }
+
+          Write-Host "--- cmake -E capabilities"
+          cmake -E capabilities
+          Write-Host "##[endgroup]"
+      - run: rake test
