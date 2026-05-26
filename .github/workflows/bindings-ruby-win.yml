@@ -1,0 +1,19 @@
+name: Bindings Tests (Ruby on Windows)
+
+on:
+  push:
+    branches:
+      - ruby-dev-win
+
+jobs:
+  windows:
+    runs-on: windows-latest
+    defaults:
+      run:
+        working-directory: bindings/ruby
+    steps:
+      - uses: ruby/setup-ruby@v1
+        with:
+          ruby-version: '3.3'
+      - uses: actions/checkout@v6
+      - run: rake test
