@@ -2,7 +2,7 @@
 
 ## [1.3.9] - Unreleased
 
-Bundled whisper.cpp: `1.9.3`
+Bundled whisper.cpp: `1.9.4`
 
 - Fixed test fixture JFKReader's format string.
 - Added #free method to `Whisper::Context`, `Whisper::VAD::Context` and `Whisper::Parakeet::Context`.
