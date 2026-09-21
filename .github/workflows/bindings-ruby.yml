@@ -7,6 +7,7 @@ on:
     paths:
       - bindings/ruby/**
       - include/whisper.h
+      - include/parakeet.h
       - examples/common-whisper.h
       - ggml/include/ggml.h
 
