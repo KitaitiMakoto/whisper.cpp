@@ -387,12 +387,11 @@ require "ndav/torch/tensor"
 require "whisper"
 
 waveform, sample_rate = TorchAudio.load("test/fixtures/jfk.wav")
-# Convert Torch::Tensor to NDAV
-samples = waveform.squeeze.to_ndav
+samples = waveform.squeeze
 
 whisper = Whisper::Context.new("base")
 whisper
-  # NDAV exports MemoryView
+  # Torch::Tensor exports MemoryView when "ndav/torch/tensor" is loaded
   .full(Whisper::Params.new, samples)
 ```
 
@@ -461,12 +460,15 @@ You may also low level API `Whisper::VAD::Context#segments_from_samples` as such
 
 ```ruby
 # Ruby Array
+require "wavefile"
 reader = WaveFile::Reader.new("path/to/audio.wav", WaveFile::Format.new(:mono, :float, 16000))
 samples = reader.enum_for(:each_buffer).map(&:samples).flatten
 
 # Or, object which exports MemoryView
+require "torchaudio"
+require "ndav/torch/tensor"
 waveform, sample_rate = TorchAudio.load("test/fixtures/jfk.wav")
-samples = waveform.squeeze.numo.to_arrow.to_arrow_array
+samples = waveform.squeeze
 
 segments = vad.segments_from_samples(Whisper::VAD::Params.new, samples)
 ```
